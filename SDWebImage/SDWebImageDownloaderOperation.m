@@ -92,6 +92,10 @@ typedef NSMutableDictionary<NSString *, id> SDCallbacksDictionary;
     if (progressBlock) callbacks[kProgressCallbackKey] = [progressBlock copy];
     if (completedBlock) callbacks[kCompletedCallbackKey] = [completedBlock copy];
     LOCK(self.callbacksLock);
+    if (self.finished) { // Calling self.finished on the wrong thread so this may not actually log every single finished operation.
+        NSLog(@"Callbacks added for url %@ for operation: %@ after it has finished!!! THIS IS BAD", self.request.URL, self);
+    }
+//    NSAssert(!self.finished, @"Cannot add handlers when operation has finished, they won't be called");
     [self.callbackBlocks addObject:callbacks];
     UNLOCK(self.callbacksLock);
     return callbacks;

@@ -93,6 +93,55 @@
     return (interfaceOrientation != UIInterfaceOrientationPortraitUpsideDown);
 }
 
+static const NSInteger kNumberOfDownloads = 1000;
+
+- (void)viewDidLoad {
+    [super viewDidLoad];
+    
+    NSMutableOrderedSet<NSNumber *> *missingCompletions = [[NSMutableOrderedSet alloc] init];
+    for (NSInteger i = 0; i < kNumberOfDownloads; i++) {
+        [missingCompletions addObject: @(i)];
+    }
+    
+    // Attempt a download of the same URL kNumberOfDownloads times, roughly 0.01 seconds apart.
+    [self recurse:missingCompletions];
+}
+
+- (void)recurse:(NSMutableOrderedSet<NSNumber *> *)missingCompletions {
+    static NSInteger sIndex = 0;
+    
+    // TEST FINISHED
+    if (sIndex >= kNumberOfDownloads) {
+        // Add 2 seconds to give the last few downloads a chance to possibly complete.
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(2 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+            if (missingCompletions.count == 0) {
+                NSLog(@"No completions missing!");
+                return;
+            }
+            
+            NSString *string = @"";
+            for (NSNumber *index in missingCompletions) {
+                string = [string stringByAppendingString:[NSString stringWithFormat:@"\nindex: %ld", index.longValue]];
+            }
+            NSLog(@"MISSING COMPLETIONS FOR THE FOLLOWING DOWNLOAD INDEXES:%@", string);
+        });
+        return;
+    }
+    
+    NSInteger tempIndex = sIndex;
+    sIndex++;
+    __weak typeof(self) wself = self;
+    [[SDWebImageDownloader sharedDownloader] downloadImageWithURL:[NSURL URLWithString:@"https://raw.githubusercontent.com/liyong03/YLGIFImage/master/YLGIFImageDemo/YLGIFImageDemo/joy.gif"] options:0 progress:nil completed:^(UIImage * _Nullable image, NSData * _Nullable data, NSError * _Nullable error, BOOL finished) {
+        NSLog(@"Completion called for download with index: %ld", (long)tempIndex);
+        [missingCompletions removeObject:@(tempIndex)];
+    }];
+    
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.01 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+        __strong typeof(self) sself = wself;
+        [sself recurse:missingCompletions];
+    });
+}
+
 #pragma mark - Table View
 
 - (NSInteger)numberOfSectionsInTableView:(UITableView *)tableView
