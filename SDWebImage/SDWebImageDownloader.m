@@ -284,8 +284,26 @@
                 return;
             }
             LOCK(sself.operationsLock);
+            SDWebImageDownloaderOperation *operation = [self.URLOperations objectForKey:url];
             [sself.URLOperations removeObjectForKey:url];
             UNLOCK(sself.operationsLock);
+            
+            NSArray<SDCallbacksDictionary *> *callbackBlocks = operation.callbackBlocks;
+            if (callbackBlocks.count > 0) {
+                dispatch_async(dispatch_get_main_queue(), ^{
+                    __strong typeof(wself) sself = wself;
+                    if (!sself) {
+                        return;
+                    }
+                    // Add left over callbacks on what would be a fresh operation.
+                    for (NSDictionary *callbackBlock in callbackBlocks) {
+                        [sself addProgressCallback:callbackBlock[kProgressCallbackKey]
+                                    completedBlock:callbackBlock[kCompletedCallbackKey]
+                                            forURL:url
+                                    createCallback:createCallback];
+                    }
+                });
+            }
         };
         [self.URLOperations setObject:operation forKey:url];
         // Add operation to operation queue only after all configuration done according to Apple's doc.
