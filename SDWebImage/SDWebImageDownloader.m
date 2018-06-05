@@ -284,8 +284,16 @@
                 return;
             }
             LOCK(sself.operationsLock);
+            SDWebImageDownloaderOperation *operation = [self.URLOperations objectForKey:url];
             [sself.URLOperations removeObjectForKey:url];
             UNLOCK(sself.operationsLock);
+            
+            if (operation.hasLeftOverHandlers) {
+                dispatch_async(dispatch_get_main_queue(), ^{
+                    // Call handlers with data or error cached in the download operation.
+                    [operation callCompletionBlocksForLeftOverHandlers];
+                });
+            }
         };
         [self.URLOperations setObject:operation forKey:url];
         // Add operation to operation queue only after all configuration done according to Apple's doc.
